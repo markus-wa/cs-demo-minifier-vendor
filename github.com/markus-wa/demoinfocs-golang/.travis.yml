@@ -1,0 +1,28 @@
+language: go
+sudo: required
+
+go:
+  - 1.9.x
+  - stable
+  - master
+
+before_script:
+  # We don't want to run the demo set test with race condition testing.
+  # The demo set is large and race tests take a lot longer
+  - race_tests=$(go test -list . | grep -v "TestDemoSet\|Benchmark" | head -n -1 | awk -vORS=\| '{ print $1 }' | sed 's/|$/\n/')
+
+script:
+  # Run race tests
+  - go test -v -race -run "$race_tests" -timeout 15m
+  # We run all tests again to get full coverage, technically unncecessary tho
+  - go test -v -coverprofile=coverage.txt -coverpkg=$(go list ./... | grep -v msg | awk -vORS=, '{ print $1 }' | sed 's/,$/\n/') -timeout 30m
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
+
+notifications:
+  webhooks:
+    urls:
+      - https://webhooks.gitter.im/e/511da3cf50cdf951116d
+    on_success: change
+    on_failure: always
